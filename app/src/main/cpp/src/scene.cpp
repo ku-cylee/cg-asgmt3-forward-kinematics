@@ -45,13 +45,25 @@ void Scene::update(float deltaTime) {
 
     Scene::camera->update();
 
-    Scene::player->load(playerVertices, playerIndices);
-    Scene::player->draw();
+    // Scene::player->load(playerVertices, playerIndices);
+    // Scene::player->draw();
 
     // Line Drawer & Debugger
-    glLineWidth(20);
-    Scene::lineDraw->load({{vec3(-20.0f, 0.0f, 0.0f)}, {vec3(20.0f, 0.0f, 0.0f)}}, {0, 1});
-    Scene::lineDraw->draw();
+    glLineWidth(10);
+    mat4 scaleDownMtx = mat4(.333f, 0, 0, 0,
+                             0, .333f, 0, 0,
+                             0, 0, .333f, 0,
+                             0, 0, 0, 1);
+    for (int idx = 0; idx < 28; idx++) {
+        mat4 tfMat = mat4(1.0f);
+        for (int parent = jParents[idx];
+             parent >= 0;
+             parent = jParents[parent]) tfMat = translate(tfMat, jOffsets[parent]);
+        vec3 parentOffset = vec3(scaleDownMtx * tfMat * vec4(0, 0, 0, 1));
+        vec3 currentOffset = vec3(scaleDownMtx * tfMat * vec4(jOffsets[idx], 1));
+        Scene::lineDraw->load({{parentOffset}, {currentOffset}}, {0, 1});
+        Scene::lineDraw->draw();
+    }
 
     LOG_PRINT_DEBUG("You can also debug variables with this function: %f", M_PI);
 }
