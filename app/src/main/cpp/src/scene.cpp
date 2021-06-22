@@ -2,6 +2,8 @@
 #include "binary/animation.h"
 #include "binary/skeleton.h"
 #include "binary/player.h"
+#include "glm/gtx/euler_angles.hpp"
+#include "glm/gtx/quaternion.hpp"
 
 Shader* Scene::vertexShader = nullptr;
 Shader* Scene::fragmentShader = nullptr;
@@ -39,8 +41,13 @@ void Scene::screen(int width, int height) {
     Scene::camera->aspect = (float) width/height;
 }
 
+#define BONES_COUNT 28
+
+float elapsedTime = 0.0f;
 bool mouseDown = false;
 void Scene::update(float deltaTime) {
+    elapsedTime += deltaTime;
+
     Scene::program->use();
 
     Scene::camera->update();
@@ -48,19 +55,31 @@ void Scene::update(float deltaTime) {
     // Scene::player->load(playerVertices, playerIndices);
     // Scene::player->draw();
 
+    vector<float> motion = motions[int(elapsedTime) % 4];
+    vector<mat4> animations = {translate(mat4(1.0f), vec3(motion[0], motion[1], motion[2]))};
+    for (int idx = 1; idx < BONES_COUNT; idx++) {
+        float halfAngleX = radians(motion[3 * idx + 3] / 2);
+        float halfAngleY = radians(motion[3 * idx + 4] / 2);
+        float halfAngleZ = radians(motion[3 * idx + 5] / 2);
+
+        quat rotX = quat(cos(halfAngleX), sin(halfAngleX), 0, 0);
+        quat rotY = quat(cos(halfAngleY), 0, sin(halfAngleY), 0);
+        quat rotZ = quat(cos(halfAngleZ), 0, 0, sin(halfAngleZ));
+
+        mat4 parentAniMtx = animations[jParents[idx]];
+        mat4 tranlsatedMtx = translate(mat4_cast(rotZ * rotX * rotY), jOffsets[idx]);
+        animations.push_back(parentAniMtx * tranlsatedMtx);
+    }
+
     // Line Drawer & Debugger
     glLineWidth(10);
-    mat4 scaleDownMtx = mat4(.333f, 0, 0, 0,
-                             0, .333f, 0, 0,
-                             0, 0, .333f, 0,
-                             0, 0, 0, 1);
-    for (int idx = 0; idx < 28; idx++) {
-        mat4 tfMat = mat4(1.0f);
-        for (int parent = jParents[idx];
-             parent >= 0;
-             parent = jParents[parent]) tfMat = translate(tfMat, jOffsets[parent]);
-        vec3 parentOffset = vec3(scaleDownMtx * tfMat * vec4(0, 0, 0, 1));
-        vec3 currentOffset = vec3(scaleDownMtx * tfMat * vec4(jOffsets[idx], 1));
+    mat4 scaleMtx = mat4(.333f, 0, 0, 0,
+                         0, .333f, 0, 0,
+                         0, 0, .333f, 0,
+                         0, 0, 0, 1);
+    for (int idx = 1; idx < BONES_COUNT; idx++) {
+        vec3 parentOffset = vec3(scaleMtx * animations[idx] * vec4(0, 0, 0, 1));
+        vec3 currentOffset = vec3(scaleMtx * animations[jParents[idx]] * vec4(0, 0, 0, 1));
         Scene::lineDraw->load({{parentOffset}, {currentOffset}}, {0, 1});
         Scene::lineDraw->draw();
     }
