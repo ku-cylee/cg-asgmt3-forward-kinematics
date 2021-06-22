@@ -71,7 +71,7 @@ void Scene::update(float deltaTime) {
     // Scene::player->draw();
 
     int prevTime = int(elapsedTime);
-    float timeDelta = elapsedTime - prevTime;
+    float timeDelta = elapsedTime - float(prevTime);
     vector<float> prevMotion = motions[prevTime % 4];
     vector<float> nextMotion = motions[(prevTime + 1) % 4];
     vector<mat4> animations = { translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta)) };
@@ -80,7 +80,7 @@ void Scene::update(float deltaTime) {
         quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
 
         mat4 parentAniMtx = animations[jParents[idx]];
-        mat4 rotateMtx = mat4_cast(mix(prevQuat, nextQuat, timeDelta));
+        mat4 rotateMtx = mat4_cast(slerp(prevQuat, nextQuat, timeDelta));
         animations.push_back(parentAniMtx * translate(rotateMtx, jOffsets[idx]));
     }
 
