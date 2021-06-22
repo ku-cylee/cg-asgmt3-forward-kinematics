@@ -2,7 +2,6 @@
 #include "binary/animation.h"
 #include "binary/skeleton.h"
 #include "binary/player.h"
-#include "glm/gtx/euler_angles.hpp"
 #include "glm/gtx/quaternion.hpp"
 
 Shader* Scene::vertexShader = nullptr;
@@ -43,6 +42,22 @@ void Scene::screen(int width, int height) {
 
 #define BONES_COUNT 28
 
+vec3 slice(vector<float> vec, int startIdx = 0) {
+    return vec3(vec[startIdx], vec[startIdx + 1], vec[startIdx + 2]);
+}
+
+quat getRotationQuat(vec3 angles) {
+    float halfAngleX = radians(angles[0] / 2);
+    float halfAngleY = radians(angles[1] / 2);
+    float halfAngleZ = radians(angles[2] / 2);
+
+    quat rotX = quat(cos(halfAngleX), sin(halfAngleX), 0, 0);
+    quat rotY = quat(cos(halfAngleY), 0, sin(halfAngleY), 0);
+    quat rotZ = quat(cos(halfAngleZ), 0, 0, sin(halfAngleZ));
+
+    return rotZ * rotX * rotY;
+}
+
 float elapsedTime = 0.0f;
 bool mouseDown = false;
 void Scene::update(float deltaTime) {
@@ -55,20 +70,18 @@ void Scene::update(float deltaTime) {
     // Scene::player->load(playerVertices, playerIndices);
     // Scene::player->draw();
 
-    vector<float> motion = motions[int(elapsedTime) % 4];
-    vector<mat4> animations = {translate(mat4(1.0f), vec3(motion[0], motion[1], motion[2]))};
+    int prevTime = int(elapsedTime);
+    float timeDelta = elapsedTime - prevTime;
+    vector<float> prevMotion = motions[prevTime % 4];
+    vector<float> nextMotion = motions[(prevTime + 1) % 4];
+    vector<mat4> animations = { translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta)) };
     for (int idx = 1; idx < BONES_COUNT; idx++) {
-        float halfAngleX = radians(motion[3 * idx + 3] / 2);
-        float halfAngleY = radians(motion[3 * idx + 4] / 2);
-        float halfAngleZ = radians(motion[3 * idx + 5] / 2);
-
-        quat rotX = quat(cos(halfAngleX), sin(halfAngleX), 0, 0);
-        quat rotY = quat(cos(halfAngleY), 0, sin(halfAngleY), 0);
-        quat rotZ = quat(cos(halfAngleZ), 0, 0, sin(halfAngleZ));
+        quat prevQuat = getRotationQuat(slice(prevMotion, 3 * idx + 3));
+        quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
 
         mat4 parentAniMtx = animations[jParents[idx]];
-        mat4 tranlsatedMtx = translate(mat4_cast(rotZ * rotX * rotY), jOffsets[idx]);
-        animations.push_back(parentAniMtx * tranlsatedMtx);
+        mat4 rotateMtx = mat4_cast(mix(prevQuat, nextQuat, timeDelta));
+        animations.push_back(parentAniMtx * translate(rotateMtx, jOffsets[idx]));
     }
 
     // Line Drawer & Debugger
