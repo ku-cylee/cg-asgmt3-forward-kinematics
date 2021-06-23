@@ -40,8 +40,6 @@ void Scene::screen(int width, int height) {
     Scene::camera->aspect = (float) width/height;
 }
 
-#define BONES_COUNT 28
-
 vec3 slice(vector<float> vec, int startIdx = 0) {
     return vec3(vec[startIdx], vec[startIdx + 1], vec[startIdx + 2]);
 }
@@ -72,19 +70,24 @@ void Scene::update(float deltaTime) {
     vector<float> prevMotion = motions[prevTime % 4];
     vector<float> nextMotion = motions[(prevTime + 1) % 4];
 
-    vector<mat4> boneToObjects = { mat4(1.0f) };
-    vector<mat4> animations = { translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta)) };
-    for (int idx = 1; idx < BONES_COUNT; idx++) {
-        vec3 offset = jOffsets[idx];
-        int parentIdx = jParents[idx];
-
+    vector<mat4> boneToObjects;
+    vector<mat4> animations;
+    for (int idx = 0; idx < jNames.size(); idx++) {
         quat prevQuat = getRotationQuat(slice(prevMotion, 3 * idx + 3));
         quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
-
-        mat4 parentAniMtx = animations[parentIdx];
         mat4 rotateMtx = mat4_cast(slerp(prevQuat, nextQuat, timeDelta));
-        animations.push_back(parentAniMtx * translate(rotateMtx, offset));
-        boneToObjects.push_back(translate(boneToObjects[parentIdx], offset));
+
+        if (idx == 0) {
+            mat4 translateMtx = translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta));
+            animations.push_back(translateMtx * rotateMtx);
+            boneToObjects.push_back(translateMtx);
+        } else {
+            vec3 offset = jOffsets[idx];
+            int parentIdx = jParents[idx];
+            mat4 parentAniMtx = animations[parentIdx];
+            animations.push_back(parentAniMtx * translate(rotateMtx, offset));
+            boneToObjects.push_back(translate(boneToObjects[parentIdx], offset));
+        }
     }
 
     vector<Vertex> vertices;
@@ -104,8 +107,6 @@ void Scene::update(float deltaTime) {
 
     Scene::player->load(vertices, playerIndices);
     Scene::player->draw();
-
-    LOG_PRINT_DEBUG("You can also debug variables with this function: %f", M_PI);
 }
 
 void Scene::mouseUpEvents(float x, float y, bool doubleTouch) {
