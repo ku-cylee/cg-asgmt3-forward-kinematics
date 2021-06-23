@@ -61,7 +61,7 @@ quat getRotationQuat(vec3 angles) {
 float elapsedTime = 0.0f;
 bool mouseDown = false;
 void Scene::update(float deltaTime) {
-    elapsedTime += deltaTime;
+    if (mouseDown) elapsedTime += deltaTime;
 
     Scene::program->use();
 
@@ -109,11 +109,11 @@ void Scene::update(float deltaTime) {
 }
 
 void Scene::mouseUpEvents(float x, float y, bool doubleTouch) {
-
+    mouseDown = false;
 }
 
 void Scene::mouseDownEvents(float x, float y, bool doubleTouch) {
-
+    mouseDown = true;
 }
 
 void Scene::mouseMoveEvents(float x, float y, bool doubleTouch) {
