@@ -67,35 +67,43 @@ void Scene::update(float deltaTime) {
 
     Scene::camera->update();
 
-    // Scene::player->load(playerVertices, playerIndices);
-    // Scene::player->draw();
-
     int prevTime = int(elapsedTime);
     float timeDelta = elapsedTime - float(prevTime);
     vector<float> prevMotion = motions[prevTime % 4];
     vector<float> nextMotion = motions[(prevTime + 1) % 4];
+
+    vector<mat4> boneToObjects = { mat4(1.0f) };
     vector<mat4> animations = { translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta)) };
     for (int idx = 1; idx < BONES_COUNT; idx++) {
+        vec3 offset = jOffsets[idx];
+        int parentIdx = jParents[idx];
+
         quat prevQuat = getRotationQuat(slice(prevMotion, 3 * idx + 3));
         quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
 
-        mat4 parentAniMtx = animations[jParents[idx]];
+        mat4 parentAniMtx = animations[parentIdx];
         mat4 rotateMtx = mat4_cast(slerp(prevQuat, nextQuat, timeDelta));
-        animations.push_back(parentAniMtx * translate(rotateMtx, jOffsets[idx]));
+        animations.push_back(parentAniMtx * translate(rotateMtx, offset));
+        boneToObjects.push_back(translate(boneToObjects[parentIdx], offset));
     }
 
-    // Line Drawer & Debugger
-    glLineWidth(10);
-    mat4 scaleMtx = mat4(.333f, 0, 0, 0,
-                         0, .333f, 0, 0,
-                         0, 0, .333f, 0,
-                         0, 0, 0, 1);
-    for (int idx = 1; idx < BONES_COUNT; idx++) {
-        vec3 parentOffset = vec3(scaleMtx * animations[idx] * vec4(0, 0, 0, 1));
-        vec3 currentOffset = vec3(scaleMtx * animations[jParents[idx]] * vec4(0, 0, 0, 1));
-        Scene::lineDraw->load({{parentOffset}, {currentOffset}}, {0, 1});
-        Scene::lineDraw->draw();
+    vector<Vertex> vertices;
+    for (int idx = 0; idx < playerVertices.size(); idx++) {
+        Vertex vertex = playerVertices[idx];
+        mat4 skinningMtx = mat4(0.0f);
+        for (int boneIdx = 0; boneIdx < 4; boneIdx++) {
+            int bone = vertex.bone[boneIdx];
+            if (bone < 0) continue;
+            float weight = vertex.weight[boneIdx];
+            skinningMtx += weight * animations[bone] * inverse(boneToObjects[bone]);
+        }
+        vertex.pos = vec3(skinningMtx * vec4(vertex.pos, 1));
+        vertex.nor = vec3(skinningMtx * vec4(vertex.nor, 1));
+        vertices.push_back(vertex);
     }
+
+    Scene::player->load(vertices, playerIndices);
+    Scene::player->draw();
 
     LOG_PRINT_DEBUG("You can also debug variables with this function: %f", M_PI);
 }
