@@ -70,23 +70,21 @@ void Scene::update(float deltaTime) {
     vector<float> prevMotion = motions[prevTime % 4];
     vector<float> nextMotion = motions[(prevTime + 1) % 4];
 
-    vector<mat4> boneToObjects;
     vector<mat4> animations;
+    vector<mat4> boneToObjects = { mat4(1.0f) };
     for (int idx = 0; idx < jNames.size(); idx++) {
         quat prevQuat = getRotationQuat(slice(prevMotion, 3 * idx + 3));
         quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
         mat4 rotateMtx = mat4_cast(slerp(prevQuat, nextQuat, timeDelta));
 
         if (idx == 0) {
-            mat4 translateMtx = translate(mat4(1.0f), mix(slice(prevMotion), slice(nextMotion), timeDelta));
+            mat4 translateMtx = translate(mix(slice(prevMotion), slice(nextMotion), timeDelta));
             animations.push_back(translateMtx * rotateMtx);
-            boneToObjects.push_back(translateMtx);
         } else {
-            vec3 offset = jOffsets[idx];
             int parentIdx = jParents[idx];
-            mat4 parentAniMtx = animations[parentIdx];
-            animations.push_back(parentAniMtx * translate(rotateMtx, offset));
-            boneToObjects.push_back(translate(boneToObjects[parentIdx], offset));
+            mat4 toParentMtx = translate(jOffsets[idx]);
+            animations.push_back(animations[parentIdx] * toParentMtx * rotateMtx);
+            boneToObjects.push_back(boneToObjects[parentIdx] * toParentMtx);
         }
     }
 
