@@ -42,18 +42,30 @@ Implemented on app/src/main/cpp/src/scene.cpp
 
 ### Updating Skeletons
 * `animations` is a vector of transformation matrices for each joint
-* `boneToObject` is a vector of translation matrices for each joint to the root
+* `boneToWorld` is a vector of translation matrices for each joint to the world space
 * For each joint,
     - Get Euler angle rotation matrix from `prevMotion` and `nextMotion` array by using `slice` function, then convert to the quaternion matrix by using `getRotationQuat`.
     - Get `rotateMtx` by interpolating quaternion matrices of previous and next motion using `slerp` function.
     - If the joint is root, push the matrix that applies rotation then the translation into `animations`.
-    - Else, push the matrix that applies rotation, then translation to its parent, then the animation of its parent into `animations`. Update `boneToObjects` as well.
+    - Else, push the matrix that applies rotation, then translation to its parent, then the animation of its parent into `animations`. Update `boneToWorld` as well.
 
 ### Applying Mesh
 * `vertices` is a vector of mesh vertices of the frame
 * For each given mesh vertex `vertex`,
     - For each bone in `vertex.bone` and its weight in `vertex.weight`, accumulate to `skinningMtx` by the product of root to the bone matrix, animation matrix and the weight of the bone.
     - Update `pos` and `nor` vector of the vertex by `skinningMtx`, then push it to the `vertices` vector
+
+## Environment Setup
+
+* Install following platform and tools in Android Studio
+    - Android 11 (API Level 30)
+    - Tools to use C++ native language: CMake, NDK v19.2.5345600
+* Open ./local.properties, and edit to
+```
+ndk.dir=<Current AppData Path>\\Local\\Android\\Sdk\\ndk\\19.2.5345600
+sdk.dir=<Current AppData Path>\\Local\\Android\\Sdk
+```
+* Press: File > Sync Project with Gradle Files
 
 ## Result
 ![forward-kinematics](./images/forward-kinematics.gif)

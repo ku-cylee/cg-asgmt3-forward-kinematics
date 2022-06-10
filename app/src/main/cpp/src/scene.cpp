@@ -71,7 +71,7 @@ void Scene::update(float deltaTime) {
     vector<float> nextMotion = motions[(prevTime + 1) % 4];
 
     vector<mat4> animations;
-    vector<mat4> boneToObjects = { mat4(1.0f) };
+    vector<mat4> boneToWorld = { mat4(1.0f) };
     for (int idx = 0; idx < jNames.size(); idx++) {
         quat prevQuat = getRotationQuat(slice(prevMotion, 3 * idx + 3));
         quat nextQuat = getRotationQuat(slice(nextMotion, 3 * idx + 3));
@@ -84,7 +84,7 @@ void Scene::update(float deltaTime) {
             int parentIdx = jParents[idx];
             mat4 toParentMtx = translate(jOffsets[idx]);
             animations.push_back(animations[parentIdx] * toParentMtx * rotateMtx);
-            boneToObjects.push_back(boneToObjects[parentIdx] * toParentMtx);
+            boneToWorld.push_back(boneToWorld[parentIdx] * toParentMtx);
         }
     }
 
@@ -96,7 +96,7 @@ void Scene::update(float deltaTime) {
             int bone = vertex.bone[boneIdx];
             if (bone < 0) continue;
             float weight = vertex.weight[boneIdx];
-            skinningMtx += weight * animations[bone] * inverse(boneToObjects[bone]);
+            skinningMtx += weight * animations[bone] * inverse(boneToWorld[bone]);
         }
         vertex.pos = vec3(skinningMtx * vec4(vertex.pos, 1));
         vertex.nor = vec3(skinningMtx * vec4(vertex.nor, 1));
